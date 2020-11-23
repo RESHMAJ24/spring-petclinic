@@ -55,11 +55,26 @@ class PetControllerTests {
 	@MockBean
 	private OwnerRepository owners;
 
+	Owner o = null;
+	Pet p = null;
+
 	@BeforeEach
 	void setup() {
 		PetType cat = new PetType();
 		cat.setId(3);
 		cat.setName("hamster");
+		Set<Pet> pets = new HashSet<Pet>();
+		o = new Owner();
+		o.setId(1);
+		o.setFirstName("test");
+		p = new Pet();
+		p.setId(1);
+		p.setName("Betty");
+		p.setType(cat);
+		p.setOwner(o);
+		pets.add(p);
+		o.setPetsInternal(pets);
+
 		given(this.pets.findPetTypes()).willReturn(Lists.newArrayList(cat));
 		given(this.owners.findById(TEST_OWNER_ID)).willReturn(new Owner());
 		given(this.pets.findById(TEST_PET_ID)).willReturn(new Pet());
@@ -107,6 +122,25 @@ class PetControllerTests {
 		mockMvc.perform(post("/owners/{ownerId}/pets/{petId}/edit", TEST_OWNER_ID, TEST_PET_ID).param("name", "Betty")
 				.param("birthDate", "2015/02/12")).andExpect(model().attributeHasNoErrors("owner"))
 				.andExpect(model().attributeHasErrors("pet")).andExpect(status().isOk())
+				.andExpect(view().name("pets/createOrUpdatePetForm"));
+	}
+	@Test
+	void testProcessDuplicateCreationFormHasErrors() throws Exception {
+
+		given(this.owners.findById(TEST_OWNER_ID)).willReturn(o);
+		given(this.pets.findById(TEST_PET_ID)).willReturn(new Pet());
+		mockMvc.perform(post("/owners/{ownerId}/pets/new", TEST_OWNER_ID).param("name", "Betty")
+				.param("type", "hamster").param("birthDate", "2015-02-12")).andExpect(model().attributeHasErrors("pet"))
+				.andExpect(model().attributeHasFieldErrorCode("pet", "name", "duplicate")).andExpect(status().isOk())
+				.andExpect(view().name("pets/createOrUpdatePetForm"));
+
+	}
+	@Test
+	void testProcessCreationNameFormHasErrors() throws Exception {
+		mockMvc.perform(post("/owners/{ownerId}/pets/new", TEST_OWNER_ID).param("type", "hamster").param("birthDate",
+				"2015-02-12")).andExpect(model().attributeHasNoErrors("owner"))
+				.andExpect(model().attributeHasErrors("pet")).andExpect(model().attributeHasFieldErrors("pet", "name"))
+				.andExpect(model().attributeHasFieldErrorCode("pet", "name", "required")).andExpect(status().isOk())
 				.andExpect(view().name("pets/createOrUpdatePetForm"));
 	}
 
